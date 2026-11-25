@@ -1,0 +1,195 @@
+/* Receipt engine: turns raw text (OCR output, a pasted e-receipt or a forwarded email)
+ * into a structured receipt, then suggests an LHDN relief category.
+ * Pure functions, no DOM, so the same file runs in the browser and in Node tests
+ * (and later in the email-ingest server).
+ */
+(function (root) {
+  // ---------- Parsing ----------
+  const PLATFORMS = [
+    ['Shopee', /shopee/i], ['TikTok Shop', /tiktok/i], ['Lazada', /lazada/i],
+    ['Grab', /\bgrab\b/i], ['Touch \'n Go', /touch\s*'?n\s*go|tng\s*ewallet/i],
+    ['Boost', /\bboost\b/i], ['Zalora', /zalora/i], ['Amazon', /amazon/i],
+    ['JomPAY', /jompay/i], ['DuitNow', /duitnow/i], ['FPX', /\bfpx\b/i],
+  ];
+
+  const MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, sept:9, oct:10, nov:11, dec:12,
+    januari:1, februari:2, mac:3, april:4, mei:5, jun_:6, julai:7, ogos:8, september:9, oktober:10, november:11, disember:12 };
+
+  const pad = n => String(n).padStart(2, '0');
+  const iso = (y, m, d) => (y > 1990 && m >= 1 && m <= 12 && d >= 1 && d <= 31) ? `${y}-${pad(m)}-${pad(d)}` : null;
+
+  function parseDate(text) {
+    let m;
+    // 2026-03-14
+    if ((m = text.match(/\b(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})\b/))) return iso(+m[1], +m[2], +m[3]);
+    // 14/03/2026 or 14-03-26 (Malaysia uses day first)
+    if ((m = text.match(/\b(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2}|\d{2})\b/))) {
+      const y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+      return iso(y, +m[2], +m[1]);
+    }
+    // 14 Mar 2026 / 14 March, 2026 / 14 Mac 2026
+    if ((m = text.match(/\b(\d{1,2})\s+([A-Za-z]{3,9})\.?,?\s+(20\d{2})\b/))) {
+      const mo = MONTHS[m[2].toLowerCase()] || MONTHS[m[2].toLowerCase().slice(0, 3)];
+      if (mo) return iso(+m[3], mo, +m[1]);
+    }
+    // Mar 14, 2026
+    if ((m = text.match(/\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(20\d{2})\b/))) {
+      const mo = MONTHS[m[1].toLowerCase()] || MONTHS[m[1].toLowerCase().slice(0, 3)];
+      if (mo) return iso(+m[3], mo, +m[2]);
+    }
+    return null;
+  }
+
+  const money = s => parseFloat(String(s).replace(/,/g, ''));
+  const AMOUNT = /(?:RM|MYR)?\s*(-?\d{1,3}(?:,\d{3})*(?:\.\d{2})|-?\d+\.\d{2})/i;
+
+  function parseTotal(lines) {
+    // Strongest labels first. "Subtotal" and "Total savings" are skipped on purpose.
+    const labels = [
+      /(grand\s*total|order\s*total|total\s*payment|amount\s*paid|total\s*paid|jumlah\s*(?:bayaran|besar)?|net\s*total|total\s*amount|amount\s*due|total\s*\(rm\)|you\s*paid)/i,
+      /\btotal\b/i,
+    ];
+    for (const label of labels) {
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const l = lines[i];
+        if (!label.test(l) || /sub\s*-?total|saving|discount|tax\s*total|sst|rounding|item/i.test(l)) continue;
+        const m = l.match(AMOUNT) || (lines[i + 1] || '').match(AMOUNT);
+        if (m) return Math.abs(money(m[1]));
+      }
+    }
+    // Fallback: largest RM amount in the text.
+    const all = lines.join('\n').match(/(?:RM|MYR)\s*\d[\d,]*\.\d{2}/gi) || [];
+    const nums = all.map(a => money(a.replace(/RM|MYR/i, '')));
+    return nums.length ? Math.max(...nums) : null;
+  }
+
+  function parseMerchant(lines, platform) {
+    for (const l of lines) {
+      const m = l.match(/(?:sold\s*by|shop\s*name|seller|store|merchant|kedai|from)\s*[:\-]\s*(.+)/i);
+      if (m) return m[1].trim().slice(0, 60);
+    }
+    const first = lines.find(l => /[A-Za-z]{3,}/.test(l) && !/receipt|invoice|resit|tax|order|thank|date|^\W+$/i.test(l));
+    return (first || platform || 'Unknown merchant').trim().slice(0, 60);
+  }
+
+  function parseReceipt(raw) {
+    const text = String(raw || '').replace(/\r/g, '');
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const platform = (PLATFORMS.find(([, re]) => re.test(text)) || [null])[0];
+    const isEInvoice = /e-?invoice|myinvois|hasil\.gov\.my|validated\s*by\s*lhdn|\bUIN\b/i.test(text);
+    const einvoiceUuid = (text.match(/\b([A-Z0-9]{26})\b/) || [])[1] || null;
+    return {
+      merchant: parseMerchant(lines, platform),
+      date: parseDate(text),
+      total: parseTotal(lines),
+      platform,
+      isEInvoice,
+      einvoiceUuid: isEInvoice ? einvoiceUuid : null,
+      text,
+    };
+  }
+
+  // ---------- Categorising ----------
+  // Each rule: relief id, optional sub-limit id, keyword regex, weight.
+  // Weights let a specific word ("dental") beat a generic one ("clinic").
+  const RULES = [
+    // Not claimable: everyday spending, utilities. Checked so we can say "no" confidently.
+    ['none', null, /grocer|tesco|lotus'?s|aeon\s*big|giant|mydin|jaya\s*grocer|99\s*speedmart|kk\s*mart|7-?eleven|family\s*mart|restaurant|restoran|mamak|kopitiam|starbucks|mcdonald|kfc|foodpanda|grabfood|shopeefood|petrol|petronas|shell|caltex|tnb|tenaga\s*nasional|air\s*selangor|syabas|indah\s*water|astro|parking|toll|clothing|uniqlo|h&m|zara|cosmetic|skincare/i, 3],
+
+    ['lifestyle', null, /\bbooks?\b|kinokuniya|mph|popular\s*book|bookxcess|borders|e-?book|kindle|magazine|newspaper|journal|smartphone|iphone|samsung\s*galaxy|xiaomi|redmi|oppo|vivo|huawei|honor|realme|laptop|notebook\s*pc|macbook|ipad|tablet|computer|\bpc\b|monitor|harvey\s*norman|senheng|machines|switch\s*store|internet|unifi|time\s*fibre|maxis\s*fibre|celcomdigi\s*fibre|broadband|fibre|postpaid|wifi/i, 2],
+    ['education', 'upskill', /udemy|coursera|linkedin\s*learning|skillshare|bootcamp|short\s*course|workshop|upskill|hrd\s*corp|certification\s*exam/i, 2],
+    ['education', null, /university|universiti|\buni\b|college|kolej|tuition\s*fee|yuran\s*pengajian|semester\s*fee|master'?s|mba|phd|doctorate|degree\s*fee|open\s*university|\boum\b|\bump\b|taylor'?s|sunway\s*university|monash|ucsi|apu\b/i, 3],
+
+    ['sports', null, /decathlon|sports?\s*direct|al-?ikhsan|nike|adidas|asics|yonex|li-?ning|victor|racket|raket|shuttlecock|badminton|futsal|tennis|pickleball|squash|swimming|golf|yoga|pilates|gym|fitness|anytime\s*fitness|celebrity\s*fitness|fitness\s*first|crossfit|marathon|run\s*registration|race\s*entry|bib|court\s*(?:booking|rental)|dumbbell|treadmill|sports?\s*equipment|bicycle|basikal|helmet/i, 2],
+
+    ['tourism', null, /zoo\s*negara|aquaria|aquarium|museum|muzium|galeri|gallery\s*entry|theme\s*park|legoland|sunway\s*lagoon|skytrex|kl\s*tower|menara\s*kl|petronas\s*twin\s*towers\s*skybridge|botanical|bird\s*park|butterfly\s*park|entrance\s*fee|tiket\s*masuk|admission|theatre|teater|istana\s*budaya|dewan\s*filharmonik|cultural|kebudayaan|heritage|warisan|national\s*park|taman\s*negara/i, 2],
+
+    ['medical', 'dental', /dental|dentist|pergigian|scaling|braces|orthodont/i, 4],
+    ['medical', 'vaccine', /vaccin|vaksin|immuni[sz]ation|flu\s*shot|hpv|influenza\s*jab/i, 4],
+    ['medical', 'checkup', /health\s*screening|medical\s*check-?up|full\s*body|blood\s*test|bp\s*monitor|self-?test|test\s*kit|glucometer|psycholog|psychiatr|counsell?ing|therapy\s*session|mental\s*health/i, 4],
+    ['medical', null, /klinik|clinic|hospital|medical\s*centre|specialist|doctor|doktor|ivf|fertility|chemo|dialysis|oncolog|physiother|consultation\s*fee/i, 2],
+    // Pharmacies sell everything, so low weight and always needs review.
+    ['medical', null, /pharmacy|farmasi|guardian|watsons|caring|big\s*pharmacy|alpro/i, 1],
+
+    ['childcare', null, /tadika|taska|kindergarten|nursery|preschool|pre-school|childcare|child\s*care|day\s*care|daycare|tabika|kemas|pasti/i, 4],
+    ['breastfeeding', null, /breast\s*pump|pam\s*susu|medela|spectra|lansinoh|milk\s*storage|breast\s*milk\s*bag|cooler\s*bag|haakaa/i, 4],
+
+    ['insurance', null, /medical\s*card|medical\s*insurance|hospitali[sz]ation\s*plan|education\s*plan|takaful\s*(?:medical|education)/i, 3],
+    ['life', 'lifeins', /life\s*insurance|life\s*assurance|takaful|prudential|great\s*eastern|aia\b|allianz\s*life|tokio\s*marine\s*life|etiqa\s*life|manulife|zurich\s*life|premium/i, 2],
+    ['life', 'epf', /\bepf\b|kwsp|i-?saraan|voluntary\s*contribution/i, 3],
+    ['prs', null, /\bprs\b|private\s*retirement|ppa\b|deferred\s*annuity/i, 3],
+    ['sspn', null, /sspn|ptptn/i, 4],
+    ['socso', null, /socso|perkeso|lindung/i, 4],
+    ['green', null, /ev\s*charg|chargev|charge\s*ev|gentari|jomcharge|parkev|dc\s*handal|wall\s*box|wallbox|composter|food\s*waste|cctv/i, 3],
+    ['zakat', null, /zakat|fitrah|lzs|lembaga\s*zakat|ppz|maiwp|maik|maij|baitulmal|pusat\s*pungutan/i, 5],
+  ];
+
+  function categorize(input, opts = {}) {
+    const text = typeof input === 'string' ? input : [input.merchant, input.text, input.notes].filter(Boolean).join('\n');
+    const scores = {};
+    for (const [relief, sub, re, w] of RULES) {
+      const hits = text.match(new RegExp(re.source, 'gi'));
+      if (!hits) continue;
+      const key = relief + '|' + (sub || '');
+      scores[key] = (scores[key] || 0) + w * Math.min(hits.length, 3);
+    }
+    const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    if (!ranked.length) return { relief: null, sub: null, confidence: 0, reason: 'No keywords matched. Pick a category yourself.' };
+
+    let [[key, best]] = ranked;
+    let [relief, sub] = key.split('|');
+    const second = ranked[1] ? ranked[1][1] : 0;
+    // Confidence: how far ahead the winner is, scaled to 0..1.
+    let confidence = Math.max(0.2, Math.min(0.95, (best - second) / (best + 1) + 0.35));
+
+    // Medical for a parent goes to the parents relief when the user says so.
+    if (relief === 'medical' && opts.forParent) { relief = 'parents'; sub = sub === 'checkup' || sub === 'vaccine' ? 'pcheckup' : ''; }
+    // Pharmacies and mobile plans are mixed baskets: always ask.
+    if (/pharmacy|farmasi|guardian|watsons|postpaid/i.test(text) && relief !== 'none') confidence = Math.min(confidence, 0.5);
+
+    const reason = relief === 'none'
+      ? 'Looks like everyday spending, which LHDN does not give relief for.'
+      : `Matched words linked to ${relief}${sub ? ' (' + sub + ')' : ''}.`;
+    return { relief: relief === 'none' ? 'none' : relief, sub: sub || null, confidence: +confidence.toFixed(2), reason };
+  }
+
+  // ---------- Totals per relief ----------
+  // Applies the overall cap and any sub-limit caps. Returns { [reliefId]: { claimed, raw, count, sub: {..} } }
+  function summarize(receipts, reliefs) {
+    const out = {};
+    for (const r of reliefs) out[r.id] = { claimed: 0, raw: 0, count: 0, sub: {} };
+    for (const rc of receipts) {
+      if (!rc.relief || !out[rc.relief] || (rc.status && rc.status !== 'claimable')) continue; // only checked receipts count
+      const o = out[rc.relief];
+      o.raw += rc.amount || 0; o.count++;
+      if (rc.sub) o.sub[rc.sub] = (o.sub[rc.sub] || 0) + (rc.amount || 0);
+    }
+    for (const r of reliefs) {
+      const o = out[r.id];
+      let total = o.raw;
+      if (r.sub) {
+        // Replace each sub-category's raw sum with its capped sum.
+        for (const s of r.sub) {
+          const v = o.sub[s.id] || 0;
+          if (v > s.limit) total -= (v - s.limit);
+        }
+      }
+      o.claimed = r.limit == null ? total : Math.min(total, r.limit);
+    }
+    return out;
+  }
+
+  // Malaysian resident progressive rates (YA2023 onwards) for a rough "tax saved" estimate.
+  const BANDS = [[5000, 0], [20000, 0.01], [35000, 0.03], [50000, 0.06], [70000, 0.11], [100000, 0.19], [400000, 0.25], [600000, 0.26], [2000000, 0.28], [Infinity, 0.30]];
+  function taxOn(chargeable) {
+    let tax = 0, prev = 0;
+    for (const [cap, rate] of BANDS) {
+      if (chargeable <= prev) break;
+      tax += (Math.min(chargeable, cap) - prev) * rate; prev = cap;
+    }
+    return tax;
+  }
+
+  const api = { parseReceipt, parseDate, categorize, summarize, taxOn, RULES };
+  if (typeof module !== 'undefined') module.exports = api; else root.Engine = api;
+})(this);
