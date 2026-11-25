@@ -357,7 +357,10 @@
     progressCb = onProgress;
     const T = await loadTesseract();
     workerP ||= T.createWorker('eng', 1, {
-      workerPath: OCR_BASE + 'worker.min.js', corePath: OCR_BASE, langPath: OCR_BASE,
+      workerPath: OCR_BASE + 'worker.min.js', corePath: OCR_BASE,
+      // The language file is stored as .wasm so static hosts serve it as binary. Tesseract asks for
+      // `${langPath}/eng.traineddata.gz`, so the query string swallows that suffix.
+      langPath: OCR_BASE + 'eng-traineddata.wasm?file=',
       logger: m => { if (m.status === 'recognizing text') progressCb(m.progress); },
     }).catch(e => { workerP = null; throw e; });
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('OCR took too long')), 90000));
