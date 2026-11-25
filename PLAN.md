@@ -25,6 +25,20 @@ Getting MyInvois credentials as an individual: you log in to the MyInvois portal
 
 `adapters/myinvois.js` has the adapter written against the real endpoints. It needs a server because the client secret cannot sit in a browser.
 
+## Status (25 Nov 2026)
+
+Built: accounts and database schema (Supabase), proof storage, email import function, daily LHDN policy watch with versioned relief rules, dashboard carousel and KPI cards, receipt history with bulk ZIP, monthly spending table by shop. Waiting on: Supabase project, GitHub repo, hosting and a domain (see SETUP.md).
+
+### Marketplace spending (Shopee, TikTok Shop, Lazada, Shein)
+
+None of the four offer an API for shoppers. Their Open Platform APIs are for sellers managing their own shops. The workable routes are:
+
+1. **Forwarded order emails** (built): a Gmail filter per shop forwards order confirmations to the user's private receipts address. Works for all four today.
+2. **Gmail connector** (later): users sign in with Google and the app reads only order emails. This needs Google's restricted-scope verification, including a yearly security assessment that costs roughly USD 500 to 4,500, so it only makes sense once there are paying users.
+3. **Paste or share** (built): copy order details from the app.
+
+Logging in with a user's marketplace password to scrape orders is ruled out: it breaks each platform's terms and puts users' accounts at risk.
+
 ## Automation roadmap
 
 ### Step 1: email forwarding (biggest win, about 1 to 2 days)

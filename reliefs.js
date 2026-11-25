@@ -75,6 +75,16 @@
     2027: 'Budget 2027 changes are proposals, so YA 2026 limits are shown for now.',
   };
 
-  const api = { RELIEFS, YEAR_NOTES, reliefsFor: y => RELIEFS[y] || RELIEFS[2026] };
+  // Rule versions. The bundled list is version 1; a newer published version from the
+  // relief_rules table (see supabase/schema.sql) replaces it at start-up.
+  const META = { 2025: { version: 1, source: 'bundled' }, 2026: { version: 1, source: 'bundled' }, 2027: { version: 1, source: 'bundled' } };
+  function applyRules(rows) {
+    for (const row of rows || []) {
+      if (!row || !Array.isArray(row.rules) || (META[row.ya] && META[row.ya].version >= row.version && META[row.ya].source !== 'bundled')) continue;
+      RELIEFS[row.ya] = row.rules;
+      META[row.ya] = { version: row.version, source: 'published', note: row.note, url: row.source_url, published: row.published_at };
+    }
+  }
+  const api = { RELIEFS, YEAR_NOTES, META, applyRules, reliefsFor: y => RELIEFS[y] || RELIEFS[2026] };
   if (typeof module !== 'undefined') module.exports = api; else root.Reliefs = api;
 })(this);

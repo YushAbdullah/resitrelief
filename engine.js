@@ -7,7 +7,7 @@
   // ---------- Parsing ----------
   const PLATFORMS = [
     ['Shopee', /shopee/i], ['TikTok Shop', /tiktok/i], ['Lazada', /lazada/i],
-    ['Grab', /\bgrab\b/i], ['Touch \'n Go', /touch\s*'?n\s*go|tng\s*ewallet/i],
+    ['Shein', /shein/i], ['Grab', /\bgrab\b/i], ['Touch \'n Go', /touch\s*'?n\s*go|tng\s*ewallet/i],
     ['Boost', /\bboost\b/i], ['Zalora', /zalora/i], ['Amazon', /amazon/i],
     ['JomPAY', /jompay/i], ['DuitNow', /duitnow/i], ['FPX', /\bfpx\b/i],
   ];
@@ -94,7 +94,7 @@
   // Weights let a specific word ("dental") beat a generic one ("clinic").
   const RULES = [
     // Not claimable: everyday spending, utilities. Checked so we can say "no" confidently.
-    ['none', null, /grocer|tesco|lotus'?s|aeon\s*big|giant|mydin|jaya\s*grocer|99\s*speedmart|kk\s*mart|7-?eleven|family\s*mart|restaurant|restoran|mamak|kopitiam|starbucks|mcdonald|kfc|foodpanda|grabfood|shopeefood|petrol|petronas|shell|caltex|tnb|tenaga\s*nasional|air\s*selangor|syabas|indah\s*water|astro|parking|toll|clothing|uniqlo|h&m|zara|cosmetic|skincare/i, 3],
+    ['none', null, /grocer|tesco|lotus'?s|aeon\s*big|giant|mydin|jaya\s*grocer|99\s*speedmart|kk\s*mart|7-?eleven|family\s*mart|restaurant|restoran|mamak|kopitiam|starbucks|mcdonald|kfc|foodpanda|grabfood|shopeefood|petrol|petronas|shell|caltex|tnb|tenaga\s*nasional|air\s*selangor|syabas|indah\s*water|astro|parking|toll|clothing|apparel|shein|uniqlo|h&m|zara|dress|blouse|cosmetic|skincare/i, 3],
 
     ['lifestyle', null, /\bbooks?\b|kinokuniya|mph|popular\s*book|bookxcess|borders|e-?book|kindle|magazine|newspaper|journal|smartphone|iphone|samsung\s*galaxy|xiaomi|redmi|oppo|vivo|huawei|honor|realme|laptop|notebook\s*pc|macbook|ipad|tablet|computer|\bpc\b|monitor|harvey\s*norman|senheng|machines|switch\s*store|internet|unifi|time\s*fibre|maxis\s*fibre|celcomdigi\s*fibre|broadband|fibre|postpaid|wifi/i, 2],
     ['education', 'upskill', /udemy|coursera|linkedin\s*learning|skillshare|bootcamp|short\s*course|workshop|upskill|hrd\s*corp|certification\s*exam/i, 2],

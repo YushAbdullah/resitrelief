@@ -84,3 +84,14 @@ Shadows are tinted green: `0 12px 32px rgba(46,98,52,.08)` for resting cards, `0
 ## Motion
 
 Cards lift 2px on hover, rows slide 2px right, the primary button rises 1px with a green glow. Bars ease in over 0.6s and sheets slide up over 0.25s. Everything is off under `prefers-reduced-motion`.
+
+## v3 additions: dashboard, tables and carousel
+
+- **Dashboard header:** green eyebrow "YA 2026 at a glance", headline "Hello, you have RMx in relief" with the amount on a green highlighter swash, and the Scan / Paste actions on the right.
+- **KPI cards:** five cards (Relief found, Est. tax saved, Total spent, Online shopping, To check). The first is the black "hero" card from the reference; the others are frosted. On phones they become a swipeable row that snaps card by card; on desktop a 5-column row. To check turns amber and opens the filtered list.
+- **Highlights carousel:** snap-scrolling slides (Monthly spending chart, Online shopping by shop, Closest to the limit, LHDN rules version) with round prev/next buttons and pill dots. One slide per view on phones, two on tablets, three on desktop.
+- **Charts:** single-series green bars with 4px rounded tops, the current month in deep green, faint grid, axis text in `--ink-3`, a hover title per bar. Bars and shop rows are tappable and filter the Receipts table.
+- **Receipts table:** frosted table with select checkboxes, sticky dark bulk-action bar (Download ZIP, CSV, Clear). Phones show merchant and amount; tablets add date and status; desktop adds shop, relief and proof icon.
+- **Monthly table:** months down, Spent, Claimable (green), one column per shop, Proof count (with proof / total), and View / download per month, with a tinted totals row.
+- **Landing page (signed out):** the v2 hero with an email magic-link form and Google button, plus three feature cards.
+- **Navigation:** desktop top links Overview, Receipts, Spending, Reliefs, Account and an "Add receipt" button. Phones: bottom bar Overview, Receipts, camera, Spending, Reliefs; Account sits behind the avatar.

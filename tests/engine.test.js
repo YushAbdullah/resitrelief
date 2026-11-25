@@ -27,3 +27,11 @@ assert.strictEqual(s.medical.claimed, 1500); // dental capped at 1000 + 500
 assert.strictEqual(s.sports.claimed, 1000);
 assert.strictEqual(E.taxOn(60000), 2600); // 1,500 on first 50k + 11% of 10k
 console.log('all engine tests passed', E.taxOn(60000));
+// marketplace order emails
+const laz = E.parseReceipt('Lazada\nThank you for your order!\nOrder #3812773\nSeller: Xiaomi Official Store\nRedmi Pad SE 8+128GB RM 699.00\nShipping Fee RM 0.00\nOrder Total: RM 699.00\nPlaced on 08 Aug 2026');
+assert.strictEqual(laz.platform, 'Lazada'); assert.strictEqual(laz.total, 699); assert.strictEqual(laz.date, '2026-08-08');
+assert.strictEqual(E.categorize(laz).relief, 'lifestyle');
+const shein = E.parseReceipt('SHEIN\nYour order has been placed\nOrder No. GSH12345\nFloral wrap dress x1 RM 45.90\nOrder Total RM 52.80\nOrder Date: Sep 3, 2026');
+assert.strictEqual(shein.platform, 'Shein'); assert.strictEqual(shein.total, 52.8); assert.strictEqual(shein.date, '2026-09-03');
+assert.strictEqual(E.categorize(shein).relief, 'none');
+console.log('marketplace tests passed');
