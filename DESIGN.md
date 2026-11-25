@@ -1,71 +1,86 @@
-# Resit Relief design system
+# Resit Relief design system (v2, "mint fintech")
 
-Based on the "Reliefs" screen reference: a calm, light, phone-first layout of rounded white cards on a cool grey ground, pastel icon tiles, and one indigo accent used for progress and the main action.
+Based on Yusri's second reference: an airy fintech landing page with a faint mint wash, a heavy black geometric headline, a light-green call-to-action, frosted white cards with soft green-tinted shadows, little tilted stat chips, thin hand-drawn green line doodles, and a transaction list with green (good) and red (bad) amounts.
+
+The app keeps every feature from v1 (scan, paste, categorise, relief limits, proof, export). Only the look and the page layout changed.
 
 ## Principles
 
-1. **One number per card.** Each relief card shows the amount used in large type, a bar, and "of RMx,xxx" underneath. Nothing else competes.
-2. **Indigo means progress or action.** Progress bars, the camera button, the active nav item and the YA pill use the accent. Everything else is neutral.
-3. **Pastel tiles identify the relief.** Each relief keeps the same tile colour and icon on every screen (dashboard, receipt rows, detail sheets).
-4. **Status is a chip, not a colour wash.** Claimable (green), Check this (amber), Not claimable (red), Example (grey).
-5. **Proof first.** Every receipt keeps its photo, PDF or original text, shown in the detail sheet.
+1. **Air first.** Lots of mint-white space. Colour comes from soft gradient glows behind the content, never from solid coloured blocks.
+2. **One loud thing per screen.** The black headline (desktop hero, page titles) is the loudest element. Everything else is quiet grey text on frosted white.
+3. **Green means good.** Light green is the main action (Scan a receipt). Deep green fills progress bars and marks claimable amounts. Red is only for "Not claimable", amber only for "To check".
+4. **Playful, not childish.** Stat chips sit slightly tilted. Receipt rows in the overview tilt by about a degree, like paper slips. Doodles are thin, sparse and never behind text.
+5. **Proof first.** Every receipt still opens to its photo, PDF or text.
+
+## Layout and UX
+
+### Desktop (960px and up)
+- **Header:** two-circle logo mark (green and black) with the wordmark on the left, section links centred (Overview, Claims, Discover, About you; the active one is underlined in green), and on the right the YA pill, a bell with a red dot when receipts need checking, and a round avatar.
+- **Hero, two columns.** Left: three tilted stat chips (relief found, tax saved, to check), a curly arrow doodle, the headline "Every receipt, ready for LHDN", a short paragraph, then a green **Scan a receipt** button and an underlined **Paste an e-receipt** link. A squiggle doodle sits underneath. Right: a stack of three cards. A black card (tax saved), a mint card (receipts kept) and a frosted receipt card in front with a fingerprint doodle, placeholder lines, a YA stamp and the relief total.
+- **Your reliefs:** centred section title and one-line explanation over a soft glow, then a 4-column grid of relief cards.
+- **Feature pair:** two frosted panels side by side. Left is **Recent receipts** (a transaction list with See all). Right is **Auto-import e-receipts** (green check, explanation, progress bar, two mini stat tiles, "Set up forwarding").
+- Sheets open as centred dialogs.
+
+### Phone (under 720px)
+- The header keeps the logo, YA pill, bell and avatar. Section links move to a floating frosted bottom bar with a raised green rounded-square camera button in the middle.
+- The hero becomes one column: chips, headline, paragraph, buttons. The card stack is hidden so the numbers stay above the fold.
+- Relief grid is 2 columns, the feature pair stacks.
+- Sheets slide up from the bottom.
+
+### Tablet (720px to 959px)
+3-column relief grid, the feature pair side by side, bottom bar still used.
 
 ## Colour tokens
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--bg` | `#F6F6FA` | `#0E0F1A` | Page ground |
-| `--surface` | `#FFFFFF` | `#181A2A` | Cards, nav, sheets |
-| `--line` | `#E9E9F1` | `#262940` | Card borders, dividers |
-| `--track` | `#E8E8EF` | `#2A2D45` | Empty progress track |
-| `--ink` | `#15172B` | `#F2F2FA` | Headings, amounts |
-| `--ink-2` | `#4A4D63` | `#C3C5D9` | Labels |
-| `--ink-3` | `#8A8DA3` | `#8C8FA8` | Secondary text ("of RM2,500") |
-| `--accent` | `#4F46E5` | `#8B84FF` | Bars, FAB, active nav |
-| `--accent-soft` | `#EEEDFD` | `#24234A` | YA pill, active nav background |
-| `--ok / --warn / --bad` | `#0F8A5F / #A45C00 / #B4233C` | `#4CD39A / #F5B451 / #FF7D93` | Status chips |
+| `--bg` | `#F3FAF1` | `#0D120E` | Page ground |
+| `--wash` | `#DDF5D6` | `#173520` | Radial glows behind content |
+| `--surface` | `#FFFFFF` | `#151B17` | Chips, rows, sheets |
+| `--glass` | `rgba(255,255,255,.72)` | `rgba(23,30,25,.78)` | Frosted cards (with 12px backdrop blur) |
+| `--line` | `#E6EEE4` | `#243027` | Hairlines |
+| `--track` | `#E3EFE0` | `#233227` | Empty progress track |
+| `--ink` | `#111312` | `#F1F5F1` | Headlines, amounts |
+| `--ink-2` | `#3F4541` | `#C5CEC7` | Body |
+| `--ink-3` | `#8A918C` | `#87918A` | Dates, captions |
+| `--green` | `#8EDC86` | `#7FD478` | CTA fill, doodles, logo dot |
+| `--green-deep` | `#2FA25A` | `#5BC473` | Progress fill, check icon |
+| `--green-ink` | `#1F7A3E` | `#7FD98F` | Claimable amounts, percentages |
+| `--red` | `#E03A3E` | `#FF7275` | Not claimable |
+| `--amber` | `#C27A00` | `#F2B54A` | To check |
+| `--dark-card` | `#1C1F1D` | `#050806` | Black card in the hero stack |
 
-Icon tiles (background / glyph):
-
-| Tone | Light | Used for |
-|---|---|---|
-| indigo | `#ECEBFD / #4F46E5` | Lifestyle, Life insurance & EPF |
-| mint | `#E3F4EC / #11845B` | Sports, PRS, EV & green |
-| peach | `#FFF0E2 / #B4610F` | Tourism & culture, Zakat |
-| rose | `#FDE9EC / #C0304B` | Medical, Breastfeeding, Parents |
-| sun | `#FFF3DF / #B26B00` | Childcare, SSPN |
-| sky | `#E5F1FC / #1F6FB8` | Education, Insurance, SOCSO |
+Shadows are tinted green: `0 12px 32px rgba(46,98,52,.08)` for resting cards, `0 18px 50px rgba(46,98,52,.14)` when lifted.
 
 ## Type
 
-- **Display:** Plus Jakarta Sans 700/800. Page titles 34px, section titles 21px, card amounts 24px.
-- **Body:** Inter 400/500/600. Body 15px, labels 16px, captions 13px.
-- Amounts use `tabular-nums` so figures line up.
-- Uppercase labels (month headers, summary label) get 0.06em letter spacing.
+- **Display:** Urbanist 800 (fallback Inter). Hero 40 to 64px (fluid), tracking -0.035em, line height 1.02. Section and page titles 28 to 40px. Card amounts 24px.
+- **Body:** Inter 400 to 600. Body 15px, captions 12 to 13px.
+- **Stat chips:** number in Urbanist 800 at 20px, label in Inter italic 13px, as in the reference.
+- Money uses `tabular-nums`.
 
-## Shape and spacing
+## Shape
 
-| Element | Radius | Padding |
-|---|---|---|
-| Relief card | 26px | 20px |
-| List group / panel | 22px | 16 to 18px |
-| Icon tile | 14px (50px square), 12px (42px small) | |
-| Pills, chips, bars | 999px | |
-| Bottom sheet | 28px top corners | 20px sides |
-
-- Page column: max 560px, 20px side gutter (safe-area aware).
-- Grid: 2 columns, 16px gap (12px under 380px wide).
-- Progress bar: 8px tall on cards, 6px for sub-limits.
+| Element | Radius |
+|---|---|
+| Cards, panels | 18px |
+| Hero stack cards | 20px |
+| Buttons | 10px (rounded rectangle, not a full pill) |
+| Stat chips | 10px |
+| Receipt rows | 12px |
+| Status chips | 6px |
+| Icon tiles, avatar | circle |
+| Bottom bar | 22px; camera button 20px |
 
 ## Components
 
-- **Top bar:** round 52px white button on the left (opens e-receipt import, dot when something needs checking) and the YA pill selector on the right.
-- **Summary card:** relief backed by receipts, estimated tax saved, receipts kept, receipts to check.
-- **Relief card:** tile, name, amount, bar, "of limit". Zakat shows "paid · comes off tax payable" instead of a bar because it is a rebate.
-- **Receipt row:** small tile, merchant, date · platform · relief, amount, status chip.
-- **Bottom nav:** floating white pill with Overview, Claims, Discover, About you, and a raised 76px indigo camera button in the middle.
-- **Bottom sheet:** used for add receipt, review form, relief detail and receipt detail. Closes on scrim tap or Escape.
+- **Relief card:** round mint icon tile and percentage used on top, name, big amount, 6px green bar, "of RMx,xxx". Zakat shows "rebate" and "paid · comes off tax payable".
+- **Receipt row:** white slip with icon, merchant (Urbanist bold), "date | platform · relief", amount on the right in green with a + for claimable, red for not claimable, amber for to check, and the status in small grey text below.
+- **Stat chip:** white, small shadow, rotated -2 to -5 degrees.
+- **Doodles:** inline SVG, 2px stroke in `--doodle`, round caps: curly arrow (hero), squiggle (under the buttons), blob outline (top-right of the auto-import panel).
+- **Filters (Claims):** row of white pills, the active one filled black.
+- **Buttons:** primary is light green with near-black text; ghost is white with a shadow; danger is a red tint.
 
 ## Motion
 
-Bars ease in over 0.6s. Sheets slide up over 0.25s. All motion is off under `prefers-reduced-motion`.
+Cards lift 2px on hover, rows slide 2px right, the primary button rises 1px with a green glow. Bars ease in over 0.6s and sheets slide up over 0.25s. Everything is off under `prefers-reduced-motion`.

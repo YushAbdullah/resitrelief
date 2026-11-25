@@ -33,6 +33,9 @@
     bank: '<path d="M3 9.5 12 4l9 5.5M5 10v7M9.5 10v7M14.5 10v7M19 10v7M3 20h18"/>',
     inbox: '<path d="M3.5 13.5 6 5h12l2.5 8.5V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M3.5 13.5H8.5l1 2h5l1-2h5"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 20c1.2-3.6 4.3-5.5 8-5.5s6.8 1.9 8 5.5"/>',
+    checkc: '<circle cx="12" cy="12" r="9" fill="currentColor" stroke="none"/><path d="m8 12.5 2.6 2.5L16 9.5" stroke="#fff" stroke-width="2"/>',
   };
   const icon = (name, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || P.receipt}</svg>`;
 
@@ -105,17 +108,29 @@
   // ---------- Rendering ----------
   function setView(v) {
     state.view = ['overview', 'claims', 'discover', 'you'].includes(v) ? v : 'overview';
-    document.querySelectorAll('.nav a').forEach(a => a.dataset.view === state.view ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+    document.querySelectorAll('.nav a[data-view]').forEach(a => a.dataset.view === state.view ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
     render(); window.scrollTo(0, 0);
   }
 
+  const DOODLE = {
+    arrow: '<svg class="doodle d-arrow" viewBox="0 0 140 90" aria-hidden="true"><path d="M8 84c6-22 2-46-6-40-8 6 10 18 30 6 22-13 52-34 96-44"/><path d="m116 2 14 4-9 11"/></svg>',
+    squiggle: '<svg class="doodle d-squiggle" viewBox="0 0 130 30" aria-hidden="true"><path d="M2 22c14 0 16-14 28-14s10 18 24 14 12-20 26-12 14 14 30 4"/></svg>',
+    blob: '<svg class="doodle d-blob" viewBox="0 0 90 90" aria-hidden="true"><path d="M70 10c18 14 16 44-4 62S16 84 14 62s20-18 30-34S54-2 70 10z"/></svg>',
+  };
+  const fingerprint = '<svg class="fp" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8a22 22 0 0 0-22 22M32 8a22 22 0 0 1 22 22v6M18 30a14 14 0 0 1 28 0v8c0 6 2 10 4 13M24 30a8 8 0 0 1 16 0v10c0 7 3 12 6 15M32 30v12c0 8 3 13 7 17M26 38c0 8 1 14 5 20M18 38c0 6 1 11 3 15M12 36v2"/></svg>';
+
   function topbar() {
     const pending = yearReceipts().filter(r => r.status === 'review').length;
-    return `<div class="topbar">
-      <button class="round" data-act="inbox" aria-label="Import e-receipts">${icon('inbox')}${pending ? '<span class="dot"></span>' : ''}</button>
-      <label class="ya"><span class="sr" hidden>Year of assessment</span>
-        <select id="year" aria-label="Year of assessment">${[2025, 2026, 2027].map(y => `<option value="${y}" ${y === state.year ? 'selected' : ''}>YA ${y}</option>`).join('')}</select>
-      </label></div>`;
+    const links = [['overview', 'Overview'], ['claims', 'Claims'], ['discover', 'Discover'], ['you', 'About you']]
+      .map(([k, t]) => `<a href="#${k}" data-view="${k}" ${state.view === k ? 'aria-current="page"' : ''}>${t}</a>`).join('');
+    return `<header class="header">
+      <a class="brand" href="#overview"><span class="mark"><i></i><i></i></span>Resit Relief</a>
+      <nav class="toplinks" aria-label="Sections">${links}</nav>
+      <div class="tools">
+        <label class="ya"><select id="year" aria-label="Year of assessment">${[2025, 2026, 2027].map(y => `<option value="${y}" ${y === state.year ? 'selected' : ''}>YA ${y}</option>`).join('')}</select></label>
+        <button class="icon-btn" data-act="go-review" aria-label="${pending} receipts to check">${icon('bell')}${pending ? '<span class="dot"></span>' : ''}</button>
+        <a class="avatar" href="#you" aria-label="About you">${icon('user')}</a>
+      </div></header>`;
   }
 
   function render() {
@@ -123,56 +138,96 @@
     v.innerHTML = topbar() + ({ overview, claims, discover, you })[state.view]();
   }
 
-  function overview() {
-    const rs = yearReceipts(), reliefs = visibleReliefs();
+  function totals() {
+    const rs = yearReceipts();
     const sum = E.summarize(rs, reliefsFor(state.year));
     const totalRelief = reliefsFor(state.year).filter(r => r.kind !== 'rebate').reduce((a, r) => a + sum[r.id].claimed, 0);
     const zakat = sum.zakat ? sum.zakat.claimed : 0;
     const inc = +state.profile.income || 0, base = Math.max(0, inc - 9000);
     const taxBefore = E.taxOn(base), taxAfter = E.taxOn(Math.max(0, base - totalRelief));
-    const saved = Math.min(taxBefore, taxBefore - taxAfter + Math.min(zakat, taxAfter));
-    const review = rs.filter(r => r.status === 'review').length;
-    const hasEx = state.receipts.some(r => r.example);
+    const saved = inc ? Math.min(taxBefore, taxBefore - taxAfter + Math.min(zakat, taxAfter)) : null;
+    const limitSum = visibleReliefs().filter(r => r.limit).reduce((a, r) => a + r.limit, 0);
+    return { rs, sum, totalRelief, saved, limitSum, review: rs.filter(r => r.status === 'review').length };
+  }
 
-    return `<h1>Reliefs</h1>
-      <p class="sub">${esc(YEAR_NOTES[state.year])}</p>
-      <section class="summary" aria-label="Summary">
-        <div><div class="label">Relief backed by receipts</div><div class="big num">${rm(totalRelief)}</div></div>
-        <div class="stats">
-          <div class="stat"><b class="num">${inc ? rm(Math.round(saved)) : '–'}</b><small>est. tax saved</small></div>
-          <div class="stat"><b class="num">${rs.length}</b><small>receipts kept</small></div>
-          <button class="stat ${review ? 'warn' : ''}" data-act="go-review" style="border:0;text-align:left"><b class="num">${review}</b><small>to check</small></button>
+  function overview() {
+    const { rs, sum, totalRelief, saved, limitSum, review } = totals();
+    const reliefs = visibleReliefs();
+    const hasEx = state.receipts.some(r => r.example);
+    const recent = rs.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 4);
+    const fromEmail = rs.filter(r => r.source === 'paste' || r.source === 'email').length;
+    const usedPct = limitSum ? Math.round(totalRelief / limitSum * 100) : 0;
+
+    return `<section class="hero">
+        <div class="hero-copy">
+          ${DOODLE.arrow}
+          <div class="chips">
+            <span class="float-chip"><b class="num">${rm(totalRelief)}</b><em>relief found</em></span>
+            <span class="float-chip"><b class="num">${saved == null ? '–' : rm(Math.round(saved))}</b><em>tax saved</em></span>
+            <button class="float-chip ${review ? 'warn' : ''}" data-act="go-review"><b class="num">${review}</b><em>to check</em></button>
+          </div>
+          <h1>Every receipt, <span class="swash">ready for</span> LHDN</h1>
+          <p class="lede">Snap a paper receipt or paste a Shopee, TikTok Shop or bill e-receipt. Resit Relief reads it, sorts it into the right YA ${state.year} tax relief and keeps it as your proof.</p>
+          <div class="ctas"><button class="btn" data-act="add">Scan a receipt</button><button class="link" data-act="paste">Paste an e-receipt</button></div>
+          ${DOODLE.squiggle}
+        </div>
+        <div class="visual" aria-hidden="true">
+          <div class="vcard v-dark"><span class="vb"><span class="mark"><i></i><i></i></span>Resit</span><div><small>Tax saved</small><br><strong class="num">${saved == null ? '–' : rm(Math.round(saved))}</strong></div></div>
+          <div class="vcard v-mint"><span class="vb"><span class="mark"><i></i><i></i></span>Resit</span><div><small>Receipts kept</small><br><strong class="num">${rs.length}</strong></div></div>
+          <div class="vcard v-glass"><span class="vb"><span class="mark"><i></i><i></i></span>Resit Relief</span>
+            ${fingerprint}
+            <div class="lines"><i></i><i></i><i></i><i></i></div>
+            <span class="stamp">YA ${state.year} · ${esc(YEAR_NOTES[state.year].split('.')[0])}</span>
+            <div class="total"><small>Relief backed by receipts</small><strong class="num">${rm(totalRelief)}</strong></div></div>
         </div>
       </section>
       ${hasEx ? `<div class="banner">${icon('receipt')}<p>You're seeing example receipts. Add your own, then clear these in About you.</p></div>` : ''}
-      <div class="section-head"><h2>Your claims</h2><span>used of each limit</span></div>
-      <div class="grid">${reliefs.map(r => reliefCard(r, sum[r.id])).join('')}</div>
-      <div class="section-head" style="justify-content:center"><button class="link" data-act="toggle-all">${state.showAll ? 'Show only reliefs that apply to me' : 'Show all reliefs'}</button></div>`;
+
+      <section class="section glow">
+        <div class="section-title"><h2>Your reliefs</h2><p>How much of each LHDN limit your receipts already cover. Tap one to see its receipts.</p></div>
+        <div class="grid">${reliefs.map(r => reliefCard(r, sum[r.id])).join('')}</div>
+        <div style="text-align:center;margin-top:18px"><button class="link" data-act="toggle-all">${state.showAll ? 'Show only reliefs that apply to me' : 'Show all reliefs'}</button></div>
+      </section>
+
+      <section class="section">
+        <div class="pair">
+          <div class="panel"><div class="panel-top"><h3>Recent receipts</h3><a class="link" href="#claims" style="color:var(--ink);font-size:14px">See all</a></div>
+            ${recent.length ? `<div class="list tilt">${recent.map(receiptRow).join('')}</div>` : `<div class="empty">No receipts yet for YA ${state.year}.</div>`}</div>
+          <div class="panel">${DOODLE.blob}
+            <div class="check">${icon('checkc')}<span>Auto-import e-receipts<small>Shopee, TikTok Shop, bills and clinics</small></span></div>
+            <p>${fromEmail} of ${rs.length} receipts this year came in without a photo. Forward receipt emails and the rest file themselves.</p>
+            <div class="bar" style="margin:6px 0"><i style="width:${Math.max(3, usedPct)}%"></i></div>
+            <div class="minis"><div class="mini"><small>Limits used ${usedPct}%</small><b class="num">${rm(totalRelief)}</b></div><div class="mini"><small>Total limits</small><b class="num">${rm(limitSum)}</b></div></div>
+            <div class="btns"><a class="btn ghost" href="#discover" style="text-decoration:none">Set up forwarding</a></div>
+          </div>
+        </div>
+      </section>`;
   }
 
   function reliefCard(r, s) {
     if (r.kind === 'rebate') {
-      return `<button class="card" data-relief="${r.id}"><span class="tile t-${r.tone}">${icon(r.icon)}</span>
+      return `<button class="card" data-relief="${r.id}"><span class="top"><span class="tile">${icon(r.icon)}</span><span class="pct">rebate</span></span>
         <span class="name">${esc(r.name)}</span><span class="amt num">${rm(s.claimed)}</span>
         <span class="rebate">paid · comes off tax payable</span></button>`;
     }
     const pct = Math.min(100, (s.claimed / r.limit) * 100);
     return `<button class="card" data-relief="${r.id}" aria-label="${esc(r.name)}: ${rm(s.claimed)} of ${rm(r.limit)}">
-      <span class="tile t-${r.tone}">${icon(r.icon)}</span>
+      <span class="top"><span class="tile">${icon(r.icon)}</span><span class="pct num">${Math.round(pct)}%</span></span>
       <span class="name">${esc(r.name)}</span>
       <span class="amt num">${rm(s.claimed)}</span>
-      <span class="bar ${pct >= 100 ? 'full' : ''}"><i style="width:${s.claimed ? Math.max(pct, 3) : 0}%"></i></span>
+      <span class="bar"><i style="width:${s.claimed ? Math.max(pct, 3) : 0}%"></i></span>
       <span class="of num">of ${rm(r.limit)}</span></button>`;
   }
 
   function receiptRow(r) {
     const rel = reliefById(r.relief);
-    const tone = rel ? rel.tone : 'grey', ic = rel ? rel.icon : 'receipt';
-    const meta = [fmtDate(r.date), r.platform, rel ? rel.name : (r.relief === 'none' ? 'Everyday spending' : 'Uncategorised')].filter(Boolean).join(' · ');
+    const meta = [fmtDate(r.date), r.platform].filter(Boolean).join(' | ');
+    const cls = { claimable: 'amt-ok', rejected: 'amt-bad', review: 'amt-warn' }[r.status] || 'amt-warn';
+    const label = (r.example ? 'Example · ' : '') + ((STATUS[r.status] || STATUS.review)[1]);
     return `<button class="row" data-receipt="${r.id}">
-      <span class="tile sm t-${tone}">${icon(ic)}</span>
-      <span class="mid"><b>${esc(r.merchant)}</b><small>${esc(meta)}</small></span>
-      <span class="right"><b class="num">${rm(r.amount, 2)}</b>${r.example ? '<span class="chip ex">Example</span>' : statusChip(r)}</span></button>`;
+      <span class="tile sm ${rel ? '' : 't-grey'}">${icon(rel ? rel.icon : 'receipt')}</span>
+      <span class="mid"><b>${esc(r.merchant)}</b><small>${esc(meta)}${rel ? ' · ' + esc(rel.name) : ''}</small></span>
+      <span class="right"><b class="num ${cls}">${r.status === 'rejected' ? '' : '+'}${rm(r.amount, 2)}</b><small>${esc(label)}</small></span></button>`;
   }
 
   function claims() {
@@ -191,48 +246,47 @@
       body = Object.entries(groups).map(([k, list]) => `<div class="month">${k === 'none' ? 'No date' : new Date(k + '-01T00:00:00').toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })}</div>
         <div class="list">${list.map(receiptRow).join('')}</div>`).join('');
     }
-    return `<h1>Claims</h1><p class="sub">Every receipt is your proof if LHDN audits you. Keep them for 7 years.</p>
+    return `<div class="narrow"><h1 class="page-title">Claims</h1><p class="page-sub">Every receipt is your proof if LHDN audits you. Keep them for 7 years.</p>
       <div class="seg" role="group" aria-label="Filter">${seg}</div>
       <input class="search" id="q" type="search" placeholder="Search merchant, item or platform" value="${esc(state.query)}">
-      ${body}`;
+      ${body}</div>`;
   }
 
   function discover() {
-    const guide = reliefsFor(state.year).map(r => `<details class="guide"><summary><span class="tile sm t-${r.tone}">${icon(r.icon)}</span><span>${esc(r.name)}</span><em class="num">${r.limit ? rm(r.limit) : 'rebate'}</em></summary>
+    const guide = reliefsFor(state.year).map(r => `<details class="guide"><summary><span class="tile sm">${icon(r.icon)}</span><span>${esc(r.name)}</span><em class="num">${r.limit ? rm(r.limit) : 'rebate'}</em></summary>
       <div><span>${esc(r.covers)}</span><span><b>Proof:</b> ${esc(r.evidence)}</span>${r.sub ? `<span><b>Sub-limits:</b> ${r.sub.map(s => `${esc(s.name)} ${rm(s.limit)}`).join(', ')}</span>` : ''}</div></details>`).join('');
-    return `<h1>Discover</h1><p class="sub">Ways to stop losing receipts, and what each relief covers.</p>
-      <div class="section-head"><h2>Collect receipts automatically</h2></div>
-      <div class="panel"><div class="head"><span class="tile sm t-indigo">${icon('mail')}</span><div><h3>Forward e-receipts by email</h3></div><span class="chip warn">Needs server</span></div>
+    return `<div class="narrow"><h1 class="page-title">Discover</h1><p class="page-sub">Ways to stop losing receipts, and what each relief covers.</p>
+      <div class="panel"><div class="head"><span class="tile sm">${icon('mail')}</span><div><h3>Forward e-receipts by email</h3></div><span class="chip warn">Needs server</span></div>
         <p>Set Gmail to auto-forward emails from Shopee, TikTok Shop, Lazada, Unifi and your bank to a private receipts address. Each one is read and filed for you.</p>
         <div class="mono">receipts+yusri@your-domain.my</div>
         <p>Until the server is set up, paste the email text and it gets read the same way.</p>
         <div class="btns"><button class="btn ghost" data-act="paste">Paste an e-receipt</button></div></div>
-      <div class="panel"><div class="head"><span class="tile sm t-peach">${icon('bag')}</span><div><h3>Shopee and TikTok Shop orders</h3></div></div>
+      <div class="panel"><div class="head"><span class="tile sm">${icon('bag')}</span><div><h3>Shopee and TikTok Shop orders</h3></div></div>
         <p>Open My Purchases, tap an order, then share or copy the order details here. Order emails from both apps also work with forwarding.</p></div>
-      <div class="panel"><div class="head"><span class="tile sm t-mint">${icon('shield')}</span><div><h3>LHDN e-invoices (MyInvois)</h3></div><span class="chip bad">Not connected</span></div>
+      <div class="panel"><div class="head"><span class="tile sm">${icon('shield')}</span><div><h3>LHDN e-invoices (MyInvois)</h3></div><span class="chip bad">Not connected</span></div>
         <p>When a shop issues an e-invoice with your tax number (TIN), it lands in your MyInvois account and can be pulled in here. Most shop receipts are consolidated e-invoices without your name, so ask for an individual e-invoice using the QR code on the receipt.</p>
         <p>LHDN has no public API for checking or filing personal reliefs. That part stays in MyTax e-Filing, and this app gives you the totals and proof to enter there.</p></div>
-      <div class="panel"><div class="head"><span class="tile sm t-sky">${icon('bank')}</span><div><h3>Bank and e-wallet statements</h3></div><span class="chip ex">Planned</span></div>
+      <div class="panel"><div class="head"><span class="tile sm">${icon('bank')}</span><div><h3>Bank and e-wallet statements</h3></div><span class="chip ex">Planned</span></div>
         <p>Import a monthly CSV from your bank or Touch 'n Go to spot payments to clinics, tadika, gyms and bookshops you forgot to snap.</p></div>
-      <div class="section-head"><h2>Relief guide YA ${state.year}</h2></div>
-      <div class="panel">${guide}</div>`;
+      <h2 class="page-title" style="font-size:26px">Relief guide YA ${state.year}</h2>
+      <div class="panel">${guide}</div></div>`;
   }
 
   function you() {
     const p = state.profile;
-    return `<h1>About you</h1><p class="sub">Your answers decide which reliefs show up and how much tax you save.</p>
+    return `<div class="narrow"><h1 class="page-title">About you</h1><p class="page-sub">Your answers decide which reliefs show up and how much tax you save.</p>
       <div class="panel">
         <label class="toggle"><span>I have children</span><input type="checkbox" id="p-kids" ${p.kids ? 'checked' : ''}></label>
         <label class="toggle"><span>I pay for my parents' medical care</span><input type="checkbox" id="p-parents" ${p.parents ? 'checked' : ''}></label>
         <label class="f">Yearly income before tax (RM)<input id="p-income" type="number" inputmode="numeric" min="0" step="1000" value="${esc(p.income)}"></label>
         <p style="font-size:13px;color:var(--ink-3)">Used only for the tax-saved estimate. It leaves out EPF, the RM9,000 self relief is included.</p>
       </div>
-      <div class="section-head"><h2>Your evidence</h2></div>
+      <h2 class="page-title" style="font-size:26px">Your evidence</h2>
       <div class="panel"><p>Export every YA ${state.year} receipt with its relief, amount and status. Use it to fill in MyTax e-Filing or send to your tax agent.</p>
         <div class="btns"><button class="btn" data-act="export">Export CSV</button><button class="btn ghost" data-act="copy">Copy summary</button></div></div>
       <div class="panel"><p>Receipts are stored on this device only.</p>
         <div class="btns">${state.receipts.some(r => r.example) ? '<button class="btn ghost" data-act="clear-ex">Clear example receipts</button>' : '<button class="btn ghost" data-act="load-ex">Load example receipts</button>'}
-        <button class="btn danger" data-act="wipe">Delete all receipts</button></div><div id="wipe-confirm"></div></div>`;
+        <button class="btn danger" data-act="wipe">Delete all receipts</button></div><div id="wipe-confirm"></div></div></div>`;
   }
 
   // ---------- Sheets ----------
@@ -250,10 +304,10 @@
 
   function addSheet() {
     openSheet(`<h2>Add a receipt</h2><p class="lead">The photo or email is kept as your proof.</p><div class="opts">
-      <button class="opt" data-act="camera"><span class="tile sm t-indigo">${icon('camera')}</span><div><b>Take a photo</b><small>Paper receipt, clinic slip, tadika resit</small></div></button>
-      <button class="opt" data-act="upload"><span class="tile sm t-sky">${icon('image')}</span><div><b>Upload image or PDF</b><small>Screenshot, e-invoice PDF, bill</small></div></button>
-      <button class="opt" data-act="paste"><span class="tile sm t-peach">${icon('paste')}</span><div><b>Paste an e-receipt</b><small>Shopee, TikTok Shop, Lazada, bill email</small></div></button>
-      <button class="opt" data-act="manual"><span class="tile sm t-grey">${icon('pen')}</span><div><b>Type it in</b><small>No receipt to hand</small></div></button></div>`);
+      <button class="opt" data-act="camera"><span class="tile sm">${icon('camera')}</span><div><b>Take a photo</b><small>Paper receipt, clinic slip, tadika resit</small></div></button>
+      <button class="opt" data-act="upload"><span class="tile sm">${icon('image')}</span><div><b>Upload image or PDF</b><small>Screenshot, e-invoice PDF, bill</small></div></button>
+      <button class="opt" data-act="paste"><span class="tile sm">${icon('paste')}</span><div><b>Paste an e-receipt</b><small>Shopee, TikTok Shop, Lazada, bill email</small></div></button>
+      <button class="opt" data-act="manual"><span class="tile sm">${icon('pen')}</span><div><b>Type it in</b><small>No receipt to hand</small></div></button></div>`);
   }
 
   function pasteSheet() {
@@ -398,7 +452,7 @@
     const r = reliefById(id); const rs = yearReceipts().filter(x => x.relief === id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const s = E.summarize(rs, [r])[id];
     const subs = r.sub ? `<div class="subbars">${r.sub.map(x => { const v = s.sub[x.id] || 0; return `<div><div class="top"><span>${esc(x.name)}</span><span class="num">${rm(Math.min(v, x.limit))} of ${rm(x.limit)}${v > x.limit ? ' · capped' : ''}</span></div><div class="bar"><i style="width:${v ? Math.max(3, Math.min(100, v / x.limit * 100)) : 0}%"></i></div></div>`; }).join('')}</div>` : '';
-    openSheet(`<div class="panel" style="border:0;padding:0"><div class="head"><span class="tile t-${r.tone}">${icon(r.icon)}</span><div><h2>${esc(r.name)}</h2>
+    openSheet(`<div class="panel" style="border:0;padding:0"><div class="head"><span class="tile lg">${icon(r.icon)}</span><div><h2>${esc(r.name)}</h2>
       <p class="num">${r.limit ? `${rm(s.claimed)} of ${rm(r.limit)} · ${rm(Math.max(0, r.limit - s.claimed))} left` : `${rm(s.claimed)} paid`}</p></div></div>
       ${r.limit ? `<div class="bar ${s.claimed >= r.limit ? 'full' : ''}"><i style="width:${s.claimed ? Math.max(3, Math.min(100, s.claimed / r.limit * 100)) : 0}%"></i></div>` : ''}
       ${subs}<p>${esc(r.covers)}</p><p><b>Proof to keep:</b> ${esc(r.evidence)}</p></div>
@@ -409,7 +463,7 @@
   function receiptSheet(id) {
     const r = state.receipts.find(x => x.id === id); if (!r) return;
     const rel = reliefById(r.relief);
-    openSheet(`<div class="panel" style="border:0;padding:0"><div class="head"><span class="tile t-${rel ? rel.tone : 'grey'}">${icon(rel ? rel.icon : 'receipt')}</span>
+    openSheet(`<div class="panel" style="border:0;padding:0"><div class="head"><span class="tile lg ${rel ? '' : 't-grey'}">${icon(rel ? rel.icon : 'receipt')}</span>
       <div><h2>${esc(r.merchant)}</h2><p class="num">${rm(r.amount, 2)} · ${fmtDate(r.date)}</p></div>${r.example ? '<span class="chip ex">Example</span>' : statusChip(r)}</div>
       ${r.image && !r.image.startsWith('data:application/pdf') ? `<img class="preview" src="${r.image}" alt="Receipt photo">` : ''}
       ${r.image && r.image.startsWith('data:application/pdf') ? `<div class="mono">PDF proof: ${esc(r.fileName || 'document')}</div>` : ''}
@@ -452,6 +506,7 @@
     const id = t.dataset.id;
     switch (t.dataset.act) {
       case 'inbox': return pasteSheet();
+      case 'add': return addSheet();
       case 'camera': closeSheet(); return $('#camera').click();
       case 'upload': closeSheet(); return $('#upload').click();
       case 'paste': return pasteSheet();
