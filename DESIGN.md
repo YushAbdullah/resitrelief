@@ -95,3 +95,13 @@ Cards lift 2px on hover, rows slide 2px right, the primary button rises 1px with
 - **Monthly table:** months down, Spent, Claimable (green), one column per shop, Proof count (with proof / total), and View / download per month, with a tinted totals row.
 - **Landing page (signed out):** the v2 hero with an email magic-link form and Google button, plus three feature cards.
 - **Navigation:** desktop top links Overview, Receipts, Spending, Reliefs, Account and an "Add receipt" button. Phones: bottom bar Overview, Receipts, camera, Spending, Reliefs; Account sits behind the avatar.
+
+## Logo
+
+`brand/logo-mark.svg` (mark), `brand/logo-full.svg` (mark + wordmark on light), `brand/logo-full-dark.svg` (on dark).
+
+- **Idea:** a receipt held safe inside a shield. The black receipt has a torn zigzag edge and a green check, so it reads as "receipt, verified and protected".
+- **Colours:** shield `#8EDC86` (CTA green), receipt `#111312` (headline black), check and line in the shield green. The mark uses the same colours on light and dark backgrounds; only the wordmark text flips (`#111312` / `#F1F5F1`).
+- **Wordmark:** "Resit Relief" in Urbanist 800, tracking -0.6, set to the right of the mark with a gap of about a quarter of the mark's width.
+- **Sizes:** works down to 16px (favicon). In the app header it is 32px; inside small cards 18px.
+- **Clear space:** keep at least a quarter of the mark's width empty around it. Don't recolour, outline, rotate or add effects.

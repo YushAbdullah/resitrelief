@@ -102,6 +102,9 @@
   }
 
   // ---------- Small builders ----------
+  // Brand mark: a receipt with a check, held inside a shield (brand/logo-mark.svg).
+  const LOGO = '<svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 2.5 41.5 8.6v13.6c0 11.3-7.4 19.6-17.5 23.3C13.9 41.8 6.5 33.5 6.5 22.2V8.6z" fill="#8EDC86"/><path d="M15.5 11.5h17v22.5l-2.83-2.1-2.84 2.1-2.83-2.1-2.83 2.1-2.84-2.1-2.83 2.1z" fill="#111312"/><path d="M19.5 16.5h9" stroke="#8EDC86" stroke-width="2" stroke-linecap="round" opacity=".55"/><path d="m19.5 23.2 3.1 3.1 6.1-6.3" fill="none" stroke="#8EDC86" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
   const DOODLE = {
     arrow: '<svg class="doodle d-arrow" viewBox="0 0 140 90" aria-hidden="true"><path d="M8 84c6-22 2-46-6-40-8 6 10 18 30 6 22-13 52-34 96-44"/><path d="m116 2 14 4-9 11"/></svg>',
     squiggle: '<svg class="doodle d-squiggle" viewBox="0 0 130 30" aria-hidden="true"><path d="M2 22c14 0 16-14 28-14s10 18 24 14 12-20 26-12 14 14 30 4"/></svg>',
@@ -177,7 +180,7 @@
     const links = [['overview', 'Overview'], ['receipts', 'Receipts'], ['spending', 'Spending'], ['reliefs', 'Reliefs'], ['account', 'Account']]
       .map(([k, t]) => `<a href="#${k}" data-view="${k}" ${state.view === k ? 'aria-current="page"' : ''}>${t}</a>`).join('');
     return `<header class="header">
-      <a class="brand" href="#overview"><span class="mark"><i></i><i></i></span>Resit Relief</a>
+      <a class="brand" href="#overview">${LOGO}Resit Relief</a>
       <nav class="toplinks" aria-label="Sections">${links}</nav>
       <div class="tools">
         <label class="ya"><select id="year" aria-label="Year of assessment">${[2025, 2026, 2027].map(y => `<option value="${y}" ${y === state.year ? 'selected' : ''}>YA ${y}</option>`).join('')}</select></label>
@@ -198,7 +201,7 @@
 
   // Public landing page (cloud mode, signed out).
   function landing() {
-    return `<header class="header"><a class="brand" href="#"><span class="mark"><i></i><i></i></span>Resit Relief</a>
+    return `<header class="header"><a class="brand" href="#">${LOGO}Resit Relief</a>
       <div class="tools"><button class="btn sm" data-act="focus-signin">Sign in</button></div></header>
       <section class="hero">
         <div class="hero-copy">${DOODLE.arrow}
@@ -213,9 +216,9 @@
           </form>${DOODLE.squiggle}
         </div>
         <div class="visual" aria-hidden="true">
-          <div class="vcard v-dark"><span class="vb"><span class="mark"><i></i><i></i></span>Resit</span><div><small>Tax saved</small><br><strong>RM1,632</strong></div></div>
-          <div class="vcard v-mint"><span class="vb"><span class="mark"><i></i><i></i></span>Resit</span><div><small>Receipts kept</small><br><strong>26</strong></div></div>
-          <div class="vcard v-glass"><span class="vb"><span class="mark"><i></i><i></i></span>Resit Relief</span>${fingerprint}<div class="lines"><i></i><i></i><i></i><i></i></div>
+          <div class="vcard v-dark"><span class="vb">${LOGO}Resit</span><div><small>Tax saved</small><br><strong>RM1,632</strong></div></div>
+          <div class="vcard v-mint"><span class="vb">${LOGO}Resit</span><div><small>Receipts kept</small><br><strong>26</strong></div></div>
+          <div class="vcard v-glass"><span class="vb">${LOGO}Resit Relief</span>${fingerprint}<div class="lines"><i></i><i></i><i></i><i></i></div>
             <span class="stamp">YA 2026</span><div class="total"><small>Relief backed by receipts</small><strong>RM3,929</strong></div></div>
         </div>
       </section>

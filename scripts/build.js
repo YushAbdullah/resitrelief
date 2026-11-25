@@ -13,6 +13,7 @@ ${body}
 </body></html>
 `);
 for (const f of ['config.js', 'store.js', 'reliefs.js', 'engine.js', 'app.js']) fs.copyFileSync(path.join(root, f), path.join(out, f));
+fs.cpSync(path.join(root, 'brand'), path.join(out, 'brand'), { recursive: true });
 fs.cpSync(path.join(root, 'vendor'), path.join(out, 'vendor'), { recursive: true });
 
 // Supabase Edge Functions run Deno ES modules: wrap the shared engine once.

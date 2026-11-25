@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 48" role="img" aria-label="Resit Relief">
+  <path d="M24 2.5 41.5 8.6v13.6c0 11.3-7.4 19.6-17.5 23.3C13.9 41.8 6.5 33.5 6.5 22.2V8.6z" fill="#8EDC86"/>
+  <path d="M15.5 11.5h17v22.5l-2.83-2.1-2.84 2.1-2.83-2.1-2.83 2.1-2.84-2.1-2.83 2.1z" fill="#111312"/>
+  <path d="M19.5 16.5h9" stroke="#8EDC86" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+  <path d="m19.5 23.2 3.1 3.1 6.1-6.3" fill="none" stroke="#8EDC86" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="54" y="32.5" font-family="Urbanist, 'Plus Jakarta Sans', Inter, sans-serif" font-weight="800" font-size="25" letter-spacing="-0.6" fill="#111312">Resit Relief</text>
+</svg>
